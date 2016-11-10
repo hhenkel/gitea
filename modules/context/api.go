@@ -12,6 +12,8 @@ import (
 	"github.com/go-gitea/gitea/modules/base"
 	"github.com/go-gitea/gitea/modules/log"
 	"github.com/go-gitea/gitea/modules/setting"
+	"github.com/go-gitea/gitea/models"
+	"github.com/go-gitea/git"
 	macaron "gopkg.in/macaron.v1"
 )
 
@@ -68,5 +70,25 @@ func APIContexter() macaron.Handler {
 			Context: c,
 		}
 		c.Map(ctx)
+	}
+}
+
+func ReferencesGitRepo() macaron.Handler {
+	return func(ctx *APIContext) {
+		// Empty repository does not have reference information.
+		if ctx.Repo.Repository.IsBare {
+			return
+		}
+
+		// For API calls.
+		if ctx.Repo.GitRepo == nil {
+			repoPath := models.RepoPath(ctx.Repo.Owner.Name, ctx.Repo.Repository.Name)
+			gitRepo, err := git.OpenRepository(repoPath)
+			if err != nil {
+				ctx.Error(500, "RepoRef Invalid repo "+repoPath, err)
+				return
+			}
+			ctx.Repo.GitRepo = gitRepo
+		}
 	}
 }
